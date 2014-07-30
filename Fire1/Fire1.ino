@@ -41,7 +41,7 @@
 
 #include "SmartMatrix.h"
 
-#define HAS_IR_REMOTE 1
+#define HAS_IR_REMOTE 0
 
 #if (HAS_IR_REMOTE == 1)
 
@@ -156,6 +156,16 @@ void setup()
     randomSeed(analogRead(5));
 }
 
+// finds the right index for our matrix
+int XY(int x, int y) {
+    if (y > height) { y = height; }
+    if (y < 0) { y = 0; }
+    if (x > width) { x = width; }
+    if (x < 0) { x = 0; }
+
+    return (y * width) + x;
+}
+
 void loop()
 {
 #if (HAS_IR_REMOTE == 1)
@@ -216,16 +226,6 @@ void loop()
     matrix.swapBuffers();
 
     delay(1000 / FRAMES_PER_SECOND);
-}
-
-// finds the right index for our matrix
-int XY(int x, int y) {
-    if (y > height) { y = height; }
-    if (y < 0) { y = 0; }
-    if (x > width) { x = width; }
-    if (x < 0) { x = 0; }
-
-    return (y * width) + x;
 }
 
 #if (HAS_IR_REMOTE == 1)

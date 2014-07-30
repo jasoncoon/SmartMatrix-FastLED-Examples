@@ -9,7 +9,7 @@
 
 #include "SmartMatrix.h"
 
-#define HAS_IR_REMOTE 1
+#define HAS_IR_REMOTE 0
 
 #if (HAS_IR_REMOTE == 1)
 
@@ -46,12 +46,6 @@ const uint8_t HEIGHT = 32;
 rgb24 *leds;
 
 byte count;
-
-rgb24 color0 = CHSV(0, 255, 255);
-rgb24 color1 = CHSV(40, 255, 255);
-rgb24 color2 = CHSV(80, 255, 255);
-rgb24 color3 = CHSV(120, 255, 255);
-rgb24 color4 = CHSV(160, 255, 255);
 
 // HSV to RGB color conversion
 // Input arguments
@@ -134,6 +128,12 @@ rgb24 CHSV(int _h, int _s, int _v) {
 
     return createHSVColor(h, s, v);
 }
+
+rgb24 color0 = CHSV(0, 255, 255);
+rgb24 color1 = CHSV(40, 255, 255);
+rgb24 color2 = CHSV(80, 255, 255);
+rgb24 color3 = CHSV(120, 255, 255);
+rgb24 color4 = CHSV(160, 255, 255);
 
 void setup() {
     // Setup serial interface

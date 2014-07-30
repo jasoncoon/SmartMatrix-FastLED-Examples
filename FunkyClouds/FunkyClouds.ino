@@ -9,7 +9,7 @@
 
 #include "SmartMatrix_32x32.h"
 
-#define HAS_IR_REMOTE 1
+#define HAS_IR_REMOTE 0
 
 #if (HAS_IR_REMOTE == 1)
 
@@ -333,7 +333,7 @@ void loop()
     StreamHorizontal(110);  // and here
 
     // main spiral
-    SpiralStream(6, 7, 8, 150);// and here
+    SpiralStream(15, 15, 15, 150); // and here
 
     // increase the contrast
     DimmAll(250);
@@ -342,7 +342,7 @@ void loop()
     //FastLED.show();
     matrix.swapBuffers();
 
-    delay(1000 / FRAMES_PER_SECOND);
+    // delay(1000 / FRAMES_PER_SECOND);
 }
 
 #if (HAS_IR_REMOTE == 1)
