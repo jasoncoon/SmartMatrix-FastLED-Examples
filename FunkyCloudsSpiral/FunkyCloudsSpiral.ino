@@ -97,7 +97,7 @@ void loop()
     // with fixed parameters (could be oszillators too)
     // center x, y, radius, scale color down
     // --> affects always a square with an odd length
-    Spiral(14, 14, 16, 128);
+    Spiral(15, 15, 15, 128);
 
     // why not several times?!
     Spiral(16, 6, 6, 128);
