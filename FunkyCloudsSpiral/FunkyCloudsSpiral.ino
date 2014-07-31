@@ -9,9 +9,26 @@
 
 #include "SmartMatrix.h"
 
+#define HAS_IR_REMOTE 0
+
+#if (HAS_IR_REMOTE == 1)
+
+#include "IRremote.h"
+
+#define IR_RECV_CS     18
+
+// IR Raw Key Codes for SparkFun remote
+#define IRCODE_HOME  0x10EFD827   
+
+IRrecv irReceiver(IR_RECV_CS);
+
+#endif
+
 SmartMatrix matrix;
 
 const rgb24 COLOR_BLACK = { 0, 0, 0 };
+
+bool isOff = false;
 
 // Matrix dimensions
 
@@ -47,6 +64,13 @@ void setup() {
     matrix.fillScreen(COLOR_BLACK);
     matrix.swapBuffers();
 
+#if (HAS_IR_REMOTE == 1)
+
+    // Initialize IR receiver
+    irReceiver.enableIRIn();
+
+#endif
+
     // set all counting directions positive for the beginning
     for (int i = 0; i < timers; i++) multiTimer[i].delta = 1;
 
@@ -76,39 +100,6 @@ void setup() {
     multiTimer[4].up = HEIGHT - 1;
     multiTimer[4].down = 0;
     multiTimer[4].count = 0;
-}
-
-void loop()
-{
-    leds = matrix.backBuffer();
-
-    // manage the Oszillators
-    UpdateTimers();
-
-    // draw just a line defined by 5 oszillators
-    Line(
-        multiTimer[3].count,  // x1
-        multiTimer[4].count,  // y1
-        multiTimer[0].count,  // x2
-        multiTimer[1].count,  // y2
-        multiTimer[2].count); // color
-
-    // manipulate the screen buffer
-    // with fixed parameters (could be oszillators too)
-    // center x, y, radius, scale color down
-    // --> affects always a square with an odd length
-    Spiral(15, 15, 15, 128);
-
-    // why not several times?!
-    Spiral(16, 6, 6, 128);
-    Spiral(10, 24, 7, 128);
-
-    // increase the contrast
-    DimmAll(250);
-
-    // done.
-    //FastLED.show();
-    matrix.swapBuffers();
 }
 
 // finds the right index for our matrix
@@ -159,29 +150,6 @@ void Spiral(int x, int y, int r, byte dimm) {
             leds[XY(x - d, i)] += leds[XY(x - d, i - 1)];
             leds[XY(x - d, i)].nscale8(dimm);
         }
-    }
-}
-
-// Bresenham line
-void Line(int x0, int y0, int x1, int y1, byte color)
-{
-    int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-    int dy = -abs(y1 - y0), sy = y0<y1 ? 1 : -1;
-    int err = dx + dy, e2;
-    for (;;){
-        leds[XY(x0, y0)] += CHSV(color, 255, 255);
-        if (x0 == x1 && y0 == y1) break;
-        e2 = 2 * err;
-        if (e2 > dy) { err += dy; x0 += sx; }
-        if (e2 < dx) { err += dx; y0 += sy; }
-    }
-}
-
-void DimmAll(byte value)
-{
-    for (int i = 0; i < NUM_LEDS; i++)
-    {
-        leds[i].nscale8(value);
     }
 }
 
@@ -265,4 +233,102 @@ rgb24 CHSV(int _h, int _s, int _v) {
     float v = (float) map(_v, 0, 255, 0, 1000) / 1000.0;
 
     return createHSVColor(h, s, v);
+}
+
+// Bresenham line
+void Line(int x0, int y0, int x1, int y1, byte color)
+{
+    int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    int dy = -abs(y1 - y0), sy = y0<y1 ? 1 : -1;
+    int err = dx + dy, e2;
+    for (;;){
+        leds[XY(x0, y0)] += CHSV(color, 255, 255);
+        if (x0 == x1 && y0 == y1) break;
+        e2 = 2 * err;
+        if (e2 > dy) { err += dy; x0 += sx; }
+        if (e2 < dx) { err += dx; y0 += sy; }
+    }
+}
+
+void DimmAll(byte value)
+{
+    for (int i = 0; i < NUM_LEDS; i++)
+    {
+        leds[i].nscale8(value);
+    }
+}
+
+#if (HAS_IR_REMOTE == 1)
+
+unsigned long handleInput() {
+    unsigned long input = 0;
+
+    decode_results results;
+
+    results.value = 0;
+
+    // Attempt to read an IR code ?
+    if (irReceiver.decode(&results)) {
+        input = results.value;
+
+        // Prepare to receive the next IR code
+        irReceiver.resume();
+    }
+
+    if (input == IRCODE_HOME) {
+        isOff = !isOff;
+
+        if (isOff){
+            matrix.fillScreen(COLOR_BLACK);
+            matrix.swapBuffers();
+        }
+
+        return input;
+    }
+
+    return input;
+}
+
+#endif
+
+void loop()
+{
+#if (HAS_IR_REMOTE == 1)
+    handleInput();
+
+    if (isOff) {
+        delay(100);
+        return;
+    }
+#endif
+
+    leds = matrix.backBuffer();
+
+    // manage the Oszillators
+    UpdateTimers();
+
+    // draw just a line defined by 5 oszillators
+    Line(
+        multiTimer[3].count,  // x1
+        multiTimer[4].count,  // y1
+        multiTimer[0].count,  // x2
+        multiTimer[1].count,  // y2
+        multiTimer[2].count); // color
+
+    // manipulate the screen buffer
+    // with fixed parameters (could be oszillators too)
+    // center x, y, radius, scale color down
+    // --> affects always a square with an odd length
+    Spiral(15, 15, 15, 128);
+
+    // why not several times?!
+    Spiral(16, 6, 6, 128);
+    Spiral(10, 24, 7, 128);
+
+    // increase the contrast
+    DimmAll(250);
+
+    // done.
+    //FastLED.show();
+    matrix.swapBuffers();
 }

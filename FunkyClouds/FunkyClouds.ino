@@ -149,16 +149,16 @@ void setup() {
     matrix.setBrightness(DEFAULT_BRIGHTNESS);
     matrix.setColorCorrection(cc24);
 
+    // Clear screen
+    matrix.fillScreen(COLOR_BLACK);
+    matrix.swapBuffers();
+
 #if (HAS_IR_REMOTE == 1)
 
     // Initialize IR receiver
     irReceiver.enableIRIn();
 
 #endif
-
-    // Clear screen
-    matrix.fillScreen(COLOR_BLACK);
-    matrix.swapBuffers();
 
     randomSeed(analogRead(5));
 
