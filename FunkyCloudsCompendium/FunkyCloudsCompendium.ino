@@ -92,7 +92,7 @@ void loop()
     AutoRun();
 
     // Comment AutoRun out and test examples seperately here
-    // SlowMandala3();
+    // Spark();
 
     // For discovering parameters of examples I reccomend to
     // tinker with a renamed copy ...
@@ -497,6 +497,8 @@ Audio6
 // all examples together
 void AutoRun() {
     // all oscillator based:
+    for (int i = 0; i < 300; i++) { Spark(); }
+    for (int i = 0; i < 300; i++) { Ghost(); }
     for (int i = 0; i < 300; i++) { Dots1(); }
     for (int i = 0; i < 300; i++) { Dots2(); }
     SlowMandala();
@@ -523,6 +525,127 @@ void AutoRun() {
     //for (int i = 0; i < 500; i++) { CaleidoTest2(); }
     //for (int i = 0; i < 500; i++) { Audio5(); }
     //for (int i = 0; i < 500; i++) { Audio6(); }
+}
+
+// There are two main parameters you can play with to control the look and
+// feel of your fire: COOLING (used in step 1 above), and SPARKING (used
+// in step 3 above).
+// 
+// COOLING: How much does the air cool as it rises?
+// Less cooling = taller flames.  More cooling = shorter flames.
+// Default 55, suggested range 20-100
+#define COOLING  55
+
+// SPARKING: What chance (out of 255) is there that a new spark will be lit?
+// Higher chance = more roaring fire.  Lower chance = more flickery fire.
+// Default 120, suggested range 50-200.
+#define SPARKING 120
+// Array of temperature readings at each simulation cell
+byte heat[NUM_LEDS];
+
+// rgb24 HeatColor( uint8_t temperature)
+// [to be included in the forthcoming FastLED v2.1]
+//
+// Approximates a 'black body radiation' spectrum for
+// a given 'heat' level.  This is useful for animations of 'fire'.
+// Heat is specified as an arbitrary scale from 0 (cool) to 255 (hot).
+// This is NOT a chromatically correct 'black body radiation'
+// spectrum, but it's surprisingly close, and it's extremely fast and small.
+//
+// On AVR/Arduino, this typically takes around 70 bytes of program memory,
+// versus 768 bytes for a full 256-entry RGB lookup table.
+
+rgb24 HeatRgb24(uint8_t temperature)
+{
+    rgb24 heatcolor;
+
+    // Scale 'heat' down from 0-255 to 0-191,
+    // which can then be easily divided into three
+    // equal 'thirds' of 64 units each.
+    uint8_t t192 = scale8_video(temperature, 192);
+
+    // calculate a value that ramps up from
+    // zero to 255 in each 'third' of the scale.
+    uint8_t heatramp = t192 & 0x3F; // 0..63
+    heatramp <<= 2; // scale up to 0..252
+
+    // now figure out which third of the spectrum we're in:
+    if (t192 & 0x80) {
+        // we're in the hottest third
+        heatcolor.red = 255; // full red
+        heatcolor.green = 255; // full green
+        heatcolor.blue = heatramp; // ramp up blue
+
+    }
+    else if (t192 & 0x40) {
+        // we're in the middle third
+        heatcolor.red = 255; // full red
+        heatcolor.green = heatramp; // ramp up green
+        heatcolor.blue = 0; // no blue
+
+    }
+    else {
+        // we're in the coolest third
+        heatcolor.red = heatramp; // ramp up red
+        heatcolor.green = 0; // no green
+        heatcolor.blue = 0; // no blue
+    }
+
+    return heatcolor;
+}
+
+void Spark() {
+    MoveOscillators();
+
+    int x = (p[1] + p[0] + p[2]) / 4;
+    int y = (p[3] + p[2] + p[1]) / 4;
+
+    // Randomly ignite new 'sparks' of heat
+    if (random(255) < SPARKING) {
+        int xy = XY(x, y);
+        heat[xy] = qadd8(heat[xy], random(160, 255));
+    }
+
+    for (int x = 0; x < WIDTH; x++) {
+        // Step 1.  Cool down every cell a little
+        for (int i = 0; i < HEIGHT; i++) {
+            int xy = XY(x, i);
+            heat[xy] = qsub8(heat[xy], random(0, ((COOLING * 10) / HEIGHT) + 2));
+        }
+
+        // Step 2.  Heat from each cell drifts 'up' and diffuses a little
+        for (int k = HEIGHT; k > 0; k--) {
+            heat[XY(x, k)] = (heat[XY(x, k - 1)] + heat[XY(x, k - 2)] + heat[XY(x, k - 2)]) / 3;
+        }
+
+        // Step 4.  Map from heat cells to LED colors
+        for (int y = 0; y < HEIGHT; y++) {
+            rgb24 color = HeatRgb24(heat[XY(y, x)]);
+
+            leds[XY(x, y)] = color;
+        }
+    }
+    
+    SpiralStream(WIDTH / 2 - 5, HEIGHT / 2 - 5, 5, 140);
+    SpiralStream(WIDTH / 2 + 5, HEIGHT / 2 + 5, 5, 140);
+
+    ShowFrame();
+    delay(15);
+    // HorizontalStream(125);
+}
+
+void Ghost() {
+    MoveOscillators();
+
+    //if (random(255) < 120)
+    leds[XY((p[2] + p[0] + p[1]) / 3, (p[1] + p[3] + p[2]) / 3)] = { 255, 255, 255 };
+
+    SpiralStream(WIDTH / 2 - 5, HEIGHT / 2 - 5, 5, 140);
+    SpiralStream(WIDTH / 2 + 5, HEIGHT / 2 + 5, 5, 140);
+
+    ShowFrame();
+    delay(15);
+    HorizontalStream(125);
 }
 
 // red, 4 spirals, one dot emitter
