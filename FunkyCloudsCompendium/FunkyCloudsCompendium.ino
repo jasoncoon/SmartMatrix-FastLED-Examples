@@ -21,6 +21,24 @@ or anything with less than 4kB RAM)
 */
 
 #include "SmartMatrix.h"
+#include "FastLED.h"
+
+#define HAS_IR_REMOTE 1
+
+#if (HAS_IR_REMOTE == 1)
+
+#include "IRremote.h"
+
+#define IR_RECV_CS     18
+
+// IR Raw Key Codes for SparkFun remote
+#define IRCODE_HOME  0x10EFD827   
+
+IRrecv irReceiver(IR_RECV_CS);
+
+bool isOff = false;
+
+#endif
 
 SmartMatrix matrix;
 
@@ -52,7 +70,7 @@ rgb24 *leds;
 // the oscillators: linear ramps 0-255
 byte osci[4];
 
-// sin8(osci) swinging between 0 - 15
+// sin8(osci) swinging between 0 to WIDTH - 1
 byte p[4];
 
 // store the 7 10Bit (0-1023) audio band values in these 2 arrays
@@ -76,27 +94,63 @@ void setup() {
 
     leds = matrix.backBuffer();
 
+#if (HAS_IR_REMOTE == 1)
+
+    // Initialize IR receiver
+    irReceiver.enableIRIn();
+
+#endif
+
     // just for debugging:
     //Serial.begin(9600);
 
     // InitMSGEQ7();
 }
 
-/*
--------------------------------------------------------------------
-The main program
--------------------------------------------------------------------
-*/
-void loop()
-{
-    AutoRun();
+bool sleepIfPowerOff() {
+#if (HAS_IR_REMOTE == 1)
+    handleInput();
 
-    // Comment AutoRun out and test examples seperately here
-    // Spark();
-
-    // For discovering parameters of examples I reccomend to
-    // tinker with a renamed copy ...
+    if (isOff) {
+        delay(100);
+        return true;
+    }
+#endif
+    return false;
 }
+
+#if (HAS_IR_REMOTE == 1)
+
+unsigned long handleInput() {
+    unsigned long input = 0;
+
+    decode_results results;
+
+    results.value = 0;
+
+    // Attempt to read an IR code ?
+    if (irReceiver.decode(&results)) {
+        input = results.value;
+
+        // Prepare to receive the next IR code
+        irReceiver.resume();
+    }
+
+    if (input == IRCODE_HOME) {
+        isOff = !isOff;
+
+        if (isOff){
+            matrix.fillScreen(COLOR_BLACK);
+            matrix.swapBuffers();
+        }
+
+        return input;
+    }
+
+    return input;
+}
+
+#endif
 
 /*
 -------------------------------------------------------------------
@@ -113,12 +167,11 @@ ReadAudio get data from MSGEQ7 into left[7] and right[7]
 -------------------------------------------------------------------
 */
 
-// translates from x, y into an index into the LED array and
-// finds the right index for our matrix
+// translates from x, y into an index into the LED array
 int XY(int x, int y) {
-    if (y > HEIGHT) { y = HEIGHT; }
+    if (y >= HEIGHT) { y = HEIGHT - 1; }
     if (y < 0) { y = 0; }
-    if (x > WIDTH) { x = WIDTH; }
+    if (x >= WIDTH) { x = WIDTH - 1; }
     if (x < 0) { x = 0; }
 
     return (y * WIDTH) + x;
@@ -148,7 +201,7 @@ void ClearAll()
 {
     for (int i = 0; i < NUM_LEDS; i++)
     {
-        leds[i] = { 0, 0, 0 };
+        leds[i] = CRGB(0, 0, 0);
     }
 }
 
@@ -450,96 +503,13 @@ void RainbowTriangle() {
     }
 }
 
-/*
--------------------------------------------------------------------
-Examples how to combine functions in order to create an effect
-
-...or: how to visualize some of the following data
-osci[0] ... osci[3] (0-255) triangle
-p[0] ... p[3] (0-15) sinus
-left[0] ... left[6] (0-1023) values of 63Hz, 160Hz, ...
-right[0] ... right[6] (0-1023)
-
-effects based only on oscillators (triangle/sine waves)
-
-AutoRun shows everything that follows
-SlowMandala red slow
-Dots1 2 arround one
-Dots2 stacking sines
-SlowMandala2 just nice and soft
-SlowMandala3 just nice and soft
-Mandala8 copy one triangle all over
-
-effects based on audio data (could be also linked to oscillators)
-
-MSGEQtest colorfull 2 chanel 7 band analyzer
-MSGEQtest2 2 frequencies linked to dot emitters in a spiral mandala
-MSGEQtest3 analyzer 2 bars
-MSGEQtest4 analyzer x 4 (as showed on youtube)
-AudioSpiral basedrum/snare linked to red/green emitters
-MSGEQtest5 one channel 7 band spectrum analyzer (spiral fadeout)
-MSGEQtest6 classic analyzer, slow falldown
-MSGEQtest7 spectrum mandala, color linked to low frequencies
-MSGEQtest8 spectrum mandala, color linked to osci
-MSGEQtest9 falling spectogram
-CopyTest
-Audio1
-Audio2
-Audio3
-Audio4
-CaleidoTest1
-Caleidotest2
-Audio5
-Audio6
--------------------------------------------------------------------
-*/
-
-// all examples together
-void AutoRun() {
-    // all oscillator based:
-    for (int i = 0; i < 300; i++) { Spark(); }
-    for (int i = 0; i < 300; i++) { Ghost(); }
-    for (int i = 0; i < 300; i++) { Dots1(); }
-    for (int i = 0; i < 300; i++) { Dots2(); }
-    SlowMandala();
-    SlowMandala2();
-    SlowMandala3();
-    for (int i = 0; i < 300; i++) { Mandala8(); }
-    //// all MSGEQ7 based:
-    //for (int i = 0; i < 500; i++) { MSGEQtest(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest2(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest3(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest4(); }
-    //for (int i = 0; i < 500; i++) { AudioSpiral(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest5(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest6(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest7(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest8(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest9(); }
-    //for (int i = 0; i < 500; i++) { CopyTest(); }
-    //for (int i = 0; i < 500; i++) { Audio1(); }
-    //for (int i = 0; i < 500; i++) { Audio2(); }
-    //for (int i = 0; i < 500; i++) { Audio3(); }
-    //for (int i = 0; i < 500; i++) { Audio4(); }
-    //for (int i = 0; i < 500; i++) { CaleidoTest1(); }
-    //for (int i = 0; i < 500; i++) { CaleidoTest2(); }
-    //for (int i = 0; i < 500; i++) { Audio5(); }
-    //for (int i = 0; i < 500; i++) { Audio6(); }
+void ShowFrame() {
+    // when using a matrix different than 16*16 use RenderCustomMatrix();
+    //RenderCustomMatrix();
+    matrix.swapBuffers();
+    leds = matrix.backBuffer();
 }
 
-// There are two main parameters you can play with to control the look and
-// feel of your fire: COOLING (used in step 1 above), and SPARKING (used
-// in step 3 above).
-// 
-// COOLING: How much does the air cool as it rises?
-// Less cooling = taller flames.  More cooling = shorter flames.
-// Default 55, suggested range 20-100
-#define COOLING  55
-
-// SPARKING: What chance (out of 255) is there that a new spark will be lit?
-// Higher chance = more roaring fire.  Lower chance = more flickery fire.
-// Default 120, suggested range 50-200.
-#define SPARKING 120
 // Array of temperature readings at each simulation cell
 byte heat[NUM_LEDS];
 
@@ -597,37 +567,97 @@ rgb24 HeatRgb24(uint8_t temperature)
 void Spark() {
     MoveOscillators();
 
-    int x = (p[1] + p[0] + p[2]) / 4;
-    int y = (p[3] + p[2] + p[1]) / 4;
+    // There are two main parameters you can play with to control the look and
+    // feel of your fire: COOLING (used in step 1 above), and SPARKING (used
+    // in step 3 above).
+    // 
+    // COOLING: How much does the air cool as it rises?
+    // Less cooling = taller flames.  More cooling = shorter flames.
+    // Default 55, suggested range 20-100
+    int COOLING = 90;
 
-    // Randomly ignite new 'sparks' of heat
-    if (random(255) < SPARKING) {
-        int xy = XY(x, y);
-        heat[xy] = qadd8(heat[xy], random(160, 255));
-    }
+    int x = (p[0] + p[1] + p[2]) / 3;
+
+    int xy = XY(x, HEIGHT - 1);
+    heat[xy] = qadd8(heat[xy], random(160, 255));
 
     for (int x = 0; x < WIDTH; x++) {
-        // Step 1.  Cool down every cell a little
-        for (int i = 0; i < HEIGHT; i++) {
-            int xy = XY(x, i);
+        // Step 2.  Cool down every cell a little
+        for (int y = 0; y < HEIGHT; y++) {
+            int xy = XY(x, y);
             heat[xy] = qsub8(heat[xy], random(0, ((COOLING * 10) / HEIGHT) + 2));
         }
 
-        // Step 2.  Heat from each cell drifts 'up' and diffuses a little
-        for (int k = HEIGHT; k > 0; k--) {
-            heat[XY(x, k)] = (heat[XY(x, k - 1)] + heat[XY(x, k - 2)] + heat[XY(x, k - 2)]) / 3;
+        // Step 3.  Heat from each cell drifts 'up' and diffuses a little
+        for (int y = 0; y < HEIGHT; y++) {
+            heat[XY(x, y)] = (heat[XY(x, y + 1)] + heat[XY(x, y + 2)] + heat[XY(x, y + 2)]) / 3;
         }
 
         // Step 4.  Map from heat cells to LED colors
         for (int y = 0; y < HEIGHT; y++) {
-            rgb24 color = HeatRgb24(heat[XY(y, x)]);
+            int xy = XY(x, y);
+            rgb24 color = HeatRgb24(heat[xy]);
 
-            leds[XY(x, y)] = color;
+            leds[xy] = color;
         }
     }
-    
-    SpiralStream(WIDTH / 2 - 5, HEIGHT / 2 - 5, 5, 140);
-    SpiralStream(WIDTH / 2 + 5, HEIGHT / 2 + 5, 5, 140);
+
+    // SpiralStream(WIDTH / 2 - 5, HEIGHT / 2 - 5, 5, 140);
+    // SpiralStream(WIDTH / 2 + 5, HEIGHT / 2 + 5, 5, 140);
+
+    ShowFrame();
+    delay(15);
+    // HorizontalStream(125);
+}
+
+void Fire() {
+    MoveOscillators();
+
+    // There are two main parameters you can play with to control the look and
+    // feel of your fire: COOLING (used in step 1 above), and SPARKING (used
+    // in step 3 above).
+    // 
+    // COOLING: How much does the air cool as it rises?
+    // Less cooling = taller flames.  More cooling = shorter flames.
+    // Default 55, suggested range 20-100
+    int COOLING = 100;
+
+    // SPARKING: What chance (out of 255) is there that a new spark will be lit?
+    // Higher chance = more roaring fire.  Lower chance = more flickery fire.
+    // Default 120, suggested range 50-200.
+    int SPARKING = 50;
+
+    for (int x = 0; x < WIDTH; x++) {
+        // Step 1.  Cool down every cell a little
+        for (int y = 0; y < HEIGHT; y++) {
+            int xy = XY(x, y);
+            heat[xy] = qsub8(heat[xy], random(0, ((COOLING * 10) / HEIGHT) + 2));
+        }
+
+        // Step 2.  Heat from each cell drifts 'up' and diffuses a little
+        for (int y = 0; y < HEIGHT; y++) {
+            heat[XY(x, y)] = (heat[XY(x, y + 1)] + heat[XY(x, y + 2)] + heat[XY(x, y + 2)]) / 3;
+        }
+
+        // Step 2.  Randomly ignite new 'sparks' of heat
+        if (random(255) < SPARKING) {
+            // int x = (p[0] + p[1] + p[2]) / 3;
+
+            int xy = XY(x, HEIGHT - 1);
+            heat[xy] = qadd8(heat[xy], random(160, 255));
+        }
+
+        // Step 4.  Map from heat cells to LED colors
+        for (int y = 0; y < HEIGHT; y++) {
+            int xy = XY(x, y);
+            rgb24 color = HeatRgb24(heat[xy]);
+
+            leds[xy] = color;
+        }
+    }
+
+    // SpiralStream(WIDTH / 2 - 5, HEIGHT / 2 - 5, 5, 140);
+    // SpiralStream(WIDTH / 2 + 5, HEIGHT / 2 + 5, 5, 140);
 
     ShowFrame();
     delay(15);
@@ -638,7 +668,7 @@ void Ghost() {
     MoveOscillators();
 
     //if (random(255) < 120)
-    leds[XY((p[2] + p[0] + p[1]) / 3, (p[1] + p[3] + p[2]) / 3)] = { 255, 255, 255 };
+    leds[XY((p[2] + p[0] + p[1]) / 3, (p[1] + p[3] + p[2]) / 3)] = CRGB(255, 255, 255);
 
     SpiralStream(WIDTH / 2 - 5, HEIGHT / 2 - 5, 5, 140);
     SpiralStream(WIDTH / 2 + 5, HEIGHT / 2 + 5, 5, 140);
@@ -652,12 +682,13 @@ void Ghost() {
 // demonstrates SpiralStream and Caleidoscope
 // (psychedelic)
 void SlowMandala() {
-    for (int i = 0; i < WIDTH; i++) {
-        for (int j = 0; j < HEIGHT; j++) {
-            Pixel(i, j, 1);
+    for (int i = 0; i < WIDTH / 2; i++) {
+        for (int j = 0; j < HEIGHT / 2; j++) {
+            leds[XY(i, j)] = CRGB(255, 0, 0);
             SpiralStream(8, 8, 8, 127);
             Caleidoscope1();
             ShowFrame();
+            if (sleepIfPowerOff()) return;
             delay(50);
         }
     }
@@ -688,7 +719,7 @@ void Dots2() {
 // beautifull but periodic
 void SlowMandala2() {
     for (int i = 1; i < WIDTH / 2; i++) {
-        for (int j = 0; j < HEIGHT; j++) {
+        for (int j = 0; j < HEIGHT / 2; j++) {
             MoveOscillators();
             Pixel(j, i, (osci[0] + osci[1]) / 2);
             SpiralStream(8, 8, 8, 127);
@@ -696,13 +727,14 @@ void SlowMandala2() {
             ShowFrame();
             delay(20);
         }
+        if (sleepIfPowerOff()) return;
     }
 }
 
 // same with a different timing
 void SlowMandala3() {
-    for (int i = 0; i < WIDTH; i++) {
-        for (int j = 0; j < HEIGHT; j++) {
+    for (int i = 0; i < WIDTH / 2; i++) {
+        for (int j = 0; j < HEIGHT / 2; j++) {
             MoveOscillators();
             Pixel(j, j, (osci[0] + osci[1]) / 2);
             SpiralStream(8, 8, 8, 127);
@@ -710,14 +742,15 @@ void SlowMandala3() {
             ShowFrame();
             delay(20);
         }
+        if (sleepIfPowerOff()) return;
     }
 }
 
 // 2 lissajou dots *2 *4
 void Mandala8() {
     MoveOscillators();
-    Pixel(p[0] / 2, p[1] / 2, osci[2]);
-    Pixel(p[2] / 2, p[3] / 2, osci[3]);
+    Pixel(p[0], p[1], osci[2]);
+    Pixel(p[2], p[3], osci[3]);
     Caleidoscope5();
     Caleidoscope2();
     HorizontalStream(110);
@@ -842,8 +875,8 @@ void MSGEQtest9() {
         leds[XY(i * 2, 0)] = CHSV(i * 27, 255, right[i] / 3); // brightness should be divided by 4
         leds[XY(1 + i * 2, 0)] = CHSV(i * 27, 255, left[i] / 3);
     }
-    leds[XY(14, 0)] = { 0, 0, 0 };
-    leds[XY(15, 0)] = { 0, 0, 0 };
+    leds[XY(14, 0)] = CRGB( 0, 0, 0 );
+    leds[XY(15, 0)] = CRGB( 0, 0, 0 );
     ShowFrame();
     VerticalMove();
 }
@@ -862,6 +895,18 @@ void CopyTest() {
     DimAll(200);
 }
 
+// rechtangle 0-1 -> 2-3
+// NOT WORKING as intended YET!
+void Scale(int x0, int y0, int x1, int y1, int x2, int y2, int x3, int y3) {
+    for (int y = y2; y < y3 + 1; y++) {
+        for (int x = x2; x < x3 + 1; x++) {
+            leds[XY(x, y)] = leds[XY(
+                x0 + ((x * (x1 - x0)) / (x3 - x1)),
+                y0 + ((y * (y1 - y0)) / (y3 - y1)))];
+        }
+    }
+}
+
 // test scale
 // NOT WORKING as intended YET!
 void CopyTest2() {
@@ -873,18 +918,6 @@ void CopyTest2() {
         7, 7, 15, 15);
     ShowFrame();
     DimAll(200);
-}
-
-// rechtangle 0-1 -> 2-3
-// NOT WORKING as intended YET!
-void Scale(int x0, int y0, int x1, int y1, int x2, int y2, int x3, int y3) {
-    for (int y = y2; y < y3 + 1; y++) {
-        for (int x = x2; x < x3 + 1; x++) {
-            leds[XY(x, y)] = leds[XY(
-                x0 + ((x * (x1 - x0)) / (x3 - x1)),
-                y0 + ((y * (y1 - y0)) / (y3 - y1)))];
-        }
-    }
 }
 
 // line spectogram mandala
@@ -1008,91 +1041,99 @@ void RenderCustomMatrix() {
     */
 }
 
-void ShowFrame() {
-    // when using a matrix different than 16*16 use RenderCustomMatrix();
-    //RenderCustomMatrix();
-    matrix.swapBuffers();
-    leds = matrix.backBuffer();
+/*
+-------------------------------------------------------------------
+Examples how to combine functions in order to create an effect
+
+...or: how to visualize some of the following data
+osci[0] ... osci[3] (0-255) triangle
+p[0] ... p[3] (0-15) sinus
+left[0] ... left[6] (0-1023) values of 63Hz, 160Hz, ...
+right[0] ... right[6] (0-1023)
+
+effects based only on oscillators (triangle/sine waves)
+
+AutoRun shows everything that follows
+SlowMandala red slow
+Dots1 2 arround one
+Dots2 stacking sines
+SlowMandala2 just nice and soft
+SlowMandala3 just nice and soft
+Mandala8 copy one triangle all over
+
+effects based on audio data (could be also linked to oscillators)
+
+MSGEQtest colorfull 2 chanel 7 band analyzer
+MSGEQtest2 2 frequencies linked to dot emitters in a spiral mandala
+MSGEQtest3 analyzer 2 bars
+MSGEQtest4 analyzer x 4 (as showed on youtube)
+AudioSpiral basedrum/snare linked to red/green emitters
+MSGEQtest5 one channel 7 band spectrum analyzer (spiral fadeout)
+MSGEQtest6 classic analyzer, slow falldown
+MSGEQtest7 spectrum mandala, color linked to low frequencies
+MSGEQtest8 spectrum mandala, color linked to osci
+MSGEQtest9 falling spectogram
+CopyTest
+Audio1
+Audio2
+Audio3
+Audio4
+CaleidoTest1
+Caleidotest2
+Audio5
+Audio6
+-------------------------------------------------------------------
+*/
+
+// all examples together
+void AutoRun() {
+    // all oscillator based:
+    for (int i = 0; i < 300; i++) { Spark(); if (sleepIfPowerOff()) return; }
+    for (int i = 0; i < 300; i++) { Fire(); if (sleepIfPowerOff()) return; }
+    for (int i = 0; i < 300; i++) { Ghost(); if (sleepIfPowerOff()) return; }
+    for (int i = 0; i < 300; i++) { Dots1(); if (sleepIfPowerOff()) return; }
+    for (int i = 0; i < 300; i++) { Dots2(); if (sleepIfPowerOff()) return; }
+    SlowMandala();
+    SlowMandala2();
+    SlowMandala3();
+    for (int i = 0; i < 300; i++) { Mandala8(); if (sleepIfPowerOff()) return; }
+
+    //// all MSGEQ7 based:
+    //for (int i = 0; i < 500; i++) { MSGEQtest(); }
+    //for (int i = 0; i < 500; i++) { MSGEQtest2(); }
+    //for (int i = 0; i < 500; i++) { MSGEQtest3(); }
+    //for (int i = 0; i < 500; i++) { MSGEQtest4(); }
+    //for (int i = 0; i < 500; i++) { AudioSpiral(); }
+    //for (int i = 0; i < 500; i++) { MSGEQtest5(); }
+    //for (int i = 0; i < 500; i++) { MSGEQtest6(); }
+    //for (int i = 0; i < 500; i++) { MSGEQtest7(); }
+    //for (int i = 0; i < 500; i++) { MSGEQtest8(); }
+    //for (int i = 0; i < 500; i++) { MSGEQtest9(); }
+    //for (int i = 0; i < 500; i++) { CopyTest(); }
+    //for (int i = 0; i < 500; i++) { Audio1(); }
+    //for (int i = 0; i < 500; i++) { Audio2(); }
+    //for (int i = 0; i < 500; i++) { Audio3(); }
+    //for (int i = 0; i < 500; i++) { Audio4(); }
+    //for (int i = 0; i < 500; i++) { CaleidoTest1(); }
+    //for (int i = 0; i < 500; i++) { CaleidoTest2(); }
+    //for (int i = 0; i < 500; i++) { Audio5(); }
+    //for (int i = 0; i < 500; i++) { Audio6(); }
 }
 
-// HSV to RGB color conversion
-// Input arguments
-// hue in degrees (0 - 360.0)
-// saturation (0.0 - 1.0)
-// value (0.0 - 1.0)
-// Output arguments
-// red, green blue (0.0 - 1.0)
-void hsvToRGB(float hue, float saturation, float value, float * red, float * green, float * blue) {
+/*
+-------------------------------------------------------------------
+The main program
+-------------------------------------------------------------------
+*/
+void loop()
+{
+    if (sleepIfPowerOff()) return;
 
-    int i;
-    float f, p, q, t;
+    AutoRun();
 
-    if (saturation == 0) {
-        // achromatic (grey)
-        *red = *green = *blue = value;
-        return;
-    }
-    hue /= 60;                  // sector 0 to 5
-    i = floor(hue);
-    f = hue - i;                // factorial part of h
-    p = value * (1 - saturation);
-    q = value * (1 - saturation * f);
-    t = value * (1 - saturation * (1 - f));
-    switch (i) {
-        case 0:
-            *red = value;
-            *green = t;
-            *blue = p;
-            break;
-        case 1:
-            *red = q;
-            *green = value;
-            *blue = p;
-            break;
-        case 2:
-            *red = p;
-            *green = value;
-            *blue = t;
-            break;
-        case 3:
-            *red = p;
-            *green = q;
-            *blue = value;
-            break;
-        case 4:
-            *red = t;
-            *green = p;
-            *blue = value;
-            break;
-        default:
-            *red = value;
-            *green = p;
-            *blue = q;
-            break;
-    }
-}
+    // Comment AutoRun out and test examples seperately here
+    // Mandala8();
 
-#define MAX_COLOR_VALUE     255
-
-// Create a HSV color
-rgb24 createHSVColor(float hue, float saturation, float value) {
-
-    float r, g, b;
-    rgb24 color;
-
-    hsvToRGB(hue, saturation, value, &r, &g, &b);
-
-    color.red = r * MAX_COLOR_VALUE;
-    color.green = g * MAX_COLOR_VALUE;
-    color.blue = b * MAX_COLOR_VALUE;
-
-    return color;
-}
-
-rgb24 CHSV(int _h, int _s, int _v) {
-    int h = map(_h, 0, 255, 0, 360);
-    float s = (float) map(_s, 0, 255, 0, 1000) / 1000.0;
-    float v = (float) map(_v, 0, 255, 0, 1000) / 1000.0;
-
-    return createHSVColor(h, s, v);
+    // For discovering parameters of examples I reccomend to
+    // tinker with a renamed copy ...
 }

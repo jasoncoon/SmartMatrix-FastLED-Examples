@@ -40,6 +40,7 @@
 #define FRAMES_PER_SECOND 60
 
 #include "SmartMatrix.h"
+#include "FastLED.h"
 
 #define HAS_IR_REMOTE 0
 
@@ -80,57 +81,6 @@ enum Direction {
 };
 
 Direction direction = Up;
-
-// rgb24 HeatColor( uint8_t temperature)
-// [to be included in the forthcoming FastLED v2.1]
-//
-// Approximates a 'black body radiation' spectrum for
-// a given 'heat' level.  This is useful for animations of 'fire'.
-// Heat is specified as an arbitrary scale from 0 (cool) to 255 (hot).
-// This is NOT a chromatically correct 'black body radiation'
-// spectrum, but it's surprisingly close, and it's extremely fast and small.
-//
-// On AVR/Arduino, this typically takes around 70 bytes of program memory,
-// versus 768 bytes for a full 256-entry RGB lookup table.
-
-rgb24 HeatRgb24(uint8_t temperature)
-{
-    rgb24 heatcolor;
-
-    // Scale 'heat' down from 0-255 to 0-191,
-    // which can then be easily divided into three
-    // equal 'thirds' of 64 units each.
-    uint8_t t192 = scale8_video(temperature, 192);
-
-    // calculate a value that ramps up from
-    // zero to 255 in each 'third' of the scale.
-    uint8_t heatramp = t192 & 0x3F; // 0..63
-    heatramp <<= 2; // scale up to 0..252
-
-    // now figure out which third of the spectrum we're in:
-    if (t192 & 0x80) {
-        // we're in the hottest third
-        heatcolor.red = 255; // full red
-        heatcolor.green = 255; // full green
-        heatcolor.blue = heatramp; // ramp up blue
-
-    }
-    else if (t192 & 0x40) {
-        // we're in the middle third
-        heatcolor.red = 255; // full red
-        heatcolor.green = heatramp; // ramp up green
-        heatcolor.blue = 0; // no blue
-
-    }
-    else {
-        // we're in the coolest third
-        heatcolor.red = heatramp; // ramp up red
-        heatcolor.green = 0; // no green
-        heatcolor.blue = 0; // no blue
-    }
-
-    return heatcolor;
-}
 
 void setup()
 {
@@ -203,19 +153,19 @@ void loop()
 
             switch (direction) {
                 case Right:
-                    color = HeatRgb24(heat[y][x]);
+                    color = HeatColor(heat[y][x]);
                     break;
 
                 case Down:
-                    color = HeatRgb24(heat[x][y]);
+                    color = HeatColor(heat[x][y]);
                     break;
 
                 case Left:
-                    color = HeatRgb24(heat[y][(width - 1) - x]);
+                    color = HeatColor(heat[y][(width - 1) - x]);
                     break;
 
                 case Up:
-                    color = HeatRgb24(heat[x][(height - 1) - y]);
+                    color = HeatColor(heat[x][(height - 1) - y]);
                     break;
             }
 

@@ -8,8 +8,9 @@
 // https://www.youtube.com/watch?v=0Ehj7sEwOy4
 
 #include "SmartMatrix.h"
+#include "FastLED.h"
 
-#define HAS_IR_REMOTE 0
+#define HAS_IR_REMOTE 1
 
 #if (HAS_IR_REMOTE == 1)
 
@@ -22,13 +23,13 @@
 
 IRrecv irReceiver(IR_RECV_CS);
 
+bool isOff = false;
+
 #endif
 
 SmartMatrix matrix;
 
 const rgb24 COLOR_BLACK = { 0, 0, 0 };
-
-bool isOff = false;
 
 // Matrix dimensions
 
@@ -102,11 +103,11 @@ void setup() {
     multiTimer[4].count = 0;
 }
 
-// finds the right index for our matrix
+// translates from x, y into an index into the LED array
 int XY(int x, int y) {
-    if (y > HEIGHT) { y = HEIGHT; }
+    if (y >= HEIGHT) { y = HEIGHT - 1; }
     if (y < 0) { y = 0; }
-    if (x > WIDTH) { x = WIDTH; }
+    if (x >= WIDTH) { x = WIDTH - 1; }
     if (x < 0) { x = 0; }
 
     return (y * WIDTH) + x;
@@ -151,88 +152,6 @@ void Spiral(int x, int y, int r, byte dimm) {
             leds[XY(x - d, i)].nscale8(dimm);
         }
     }
-}
-
-// HSV to RGB color conversion
-// Input arguments
-// hue in degrees (0 - 360.0)
-// saturation (0.0 - 1.0)
-// value (0.0 - 1.0)
-// Output arguments
-// red, green blue (0.0 - 1.0)
-void hsvToRGB(float hue, float saturation, float value, float * red, float * green, float * blue) {
-
-    int i;
-    float f, p, q, t;
-
-    if (saturation == 0) {
-        // achromatic (grey)
-        *red = *green = *blue = value;
-        return;
-    }
-    hue /= 60;                  // sector 0 to 5
-    i = floor(hue);
-    f = hue - i;                // factorial part of h
-    p = value * (1 - saturation);
-    q = value * (1 - saturation * f);
-    t = value * (1 - saturation * (1 - f));
-    switch (i) {
-        case 0:
-            *red = value;
-            *green = t;
-            *blue = p;
-            break;
-        case 1:
-            *red = q;
-            *green = value;
-            *blue = p;
-            break;
-        case 2:
-            *red = p;
-            *green = value;
-            *blue = t;
-            break;
-        case 3:
-            *red = p;
-            *green = q;
-            *blue = value;
-            break;
-        case 4:
-            *red = t;
-            *green = p;
-            *blue = value;
-            break;
-        default:
-            *red = value;
-            *green = p;
-            *blue = q;
-            break;
-    }
-}
-
-#define MAX_COLOR_VALUE     255
-
-// Create a HSV color
-rgb24 createHSVColor(float hue, float saturation, float value) {
-
-    float r, g, b;
-    rgb24 color;
-
-    hsvToRGB(hue, saturation, value, &r, &g, &b);
-
-    color.red = r * MAX_COLOR_VALUE;
-    color.green = g * MAX_COLOR_VALUE;
-    color.blue = b * MAX_COLOR_VALUE;
-
-    return color;
-}
-
-rgb24 CHSV(int _h, int _s, int _v) {
-    int h = map(_h, 0, 255, 0, 360);
-    float s = (float) map(_s, 0, 255, 0, 1000) / 1000.0;
-    float v = (float) map(_v, 0, 255, 0, 1000) / 1000.0;
-
-    return createHSVColor(h, s, v);
 }
 
 // Bresenham line
@@ -319,11 +238,11 @@ void loop()
     // with fixed parameters (could be oszillators too)
     // center x, y, radius, scale color down
     // --> affects always a square with an odd length
-    Spiral(15, 15, 15, 128);
+    Spiral(15, 15, 16, 128);
 
     // why not several times?!
     Spiral(16, 6, 6, 128);
-    Spiral(10, 24, 7, 128);
+    Spiral(10, 24, 10, 128);
 
     // increase the contrast
     DimmAll(250);

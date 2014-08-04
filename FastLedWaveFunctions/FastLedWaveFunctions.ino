@@ -8,6 +8,7 @@
 // https://www.youtube.com/watch?v=s2U99Zu-kYw
 
 #include "SmartMatrix.h"
+#include "FastLED.h"
 
 #define HAS_IR_REMOTE 0
 
@@ -46,88 +47,6 @@ const uint8_t HEIGHT = 32;
 rgb24 *leds;
 
 byte count;
-
-// HSV to RGB color conversion
-// Input arguments
-// hue in degrees (0 - 360.0)
-// saturation (0.0 - 1.0)
-// value (0.0 - 1.0)
-// Output arguments
-// red, green blue (0.0 - 1.0)
-void hsvToRGB(float hue, float saturation, float value, float * red, float * green, float * blue) {
-
-    int i;
-    float f, p, q, t;
-
-    if (saturation == 0) {
-        // achromatic (grey)
-        *red = *green = *blue = value;
-        return;
-    }
-    hue /= 60;                  // sector 0 to 5
-    i = floor(hue);
-    f = hue - i;                // factorial part of h
-    p = value * (1 - saturation);
-    q = value * (1 - saturation * f);
-    t = value * (1 - saturation * (1 - f));
-    switch (i) {
-        case 0:
-            *red = value;
-            *green = t;
-            *blue = p;
-            break;
-        case 1:
-            *red = q;
-            *green = value;
-            *blue = p;
-            break;
-        case 2:
-            *red = p;
-            *green = value;
-            *blue = t;
-            break;
-        case 3:
-            *red = p;
-            *green = q;
-            *blue = value;
-            break;
-        case 4:
-            *red = t;
-            *green = p;
-            *blue = value;
-            break;
-        default:
-            *red = value;
-            *green = p;
-            *blue = q;
-            break;
-    }
-}
-
-#define MAX_COLOR_VALUE     255
-
-// Create a HSV color
-rgb24 createHSVColor(float hue, float saturation, float value) {
-
-    float r, g, b;
-    rgb24 color;
-
-    hsvToRGB(hue, saturation, value, &r, &g, &b);
-
-    color.red = r * MAX_COLOR_VALUE;
-    color.green = g * MAX_COLOR_VALUE;
-    color.blue = b * MAX_COLOR_VALUE;
-
-    return color;
-}
-
-rgb24 CHSV(int _h, int _s, int _v) {
-    int h = map(_h, 0, 255, 0, 360);
-    float s = (float) map(_s, 0, 255, 0, 1000) / 1000.0;
-    float v = (float) map(_v, 0, 255, 0, 1000) / 1000.0;
-
-    return createHSVColor(h, s, v);
-}
 
 rgb24 color0 = CHSV(0, 255, 255);
 rgb24 color1 = CHSV(40, 255, 255);
