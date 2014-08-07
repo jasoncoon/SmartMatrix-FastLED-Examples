@@ -23,7 +23,7 @@ or anything with less than 4kB RAM)
 #include "SmartMatrix.h"
 #include "FastLED.h"
 
-#define HAS_IR_REMOTE 1
+#define HAS_IR_REMOTE 0
 
 #if (HAS_IR_REMOTE == 1)
 
@@ -48,12 +48,11 @@ const rgb24 COLOR_BLACK = { 0, 0, 0 };
 // and light intensity
 #define BRIGHTNESS 255
 
-//// MSGEQ7 wiring on spectrum analyser shield
-//#define MSGEQ7_STROBE_PIN 4
-//#define MSGEQ7_RESET_PIN 5
-//#define AUDIO_LEFT_PIN 0
-//#define AUDIO_RIGHT_PIN 1
-
+// MSGEQ7 wiring on spectrum analyser shield
+#define AUDIO_LEFT_PIN 19 // 0
+#define AUDIO_RIGHT_PIN 18 // 1
+#define MSGEQ7_STROBE_PIN 17 // 4
+#define MSGEQ7_RESET_PIN 16 // 5
 
 // Matrix dimensions
 
@@ -76,6 +75,38 @@ byte p[4];
 // store the 7 10Bit (0-1023) audio band values in these 2 arrays
 int left[7];
 int right[7];
+
+int leftCorrection[7] = {
+    -64, -64, -72, -64, -96, -96, -96, 
+};
+
+int rightCorrection[7] = {
+    -64, -72, -72, -72, -96, -96, -96, 
+};
+
+// wake up the MSGEQ7
+void InitMSGEQ7() {
+    pinMode(MSGEQ7_RESET_PIN, OUTPUT);
+    pinMode(MSGEQ7_STROBE_PIN, OUTPUT);
+    digitalWrite(MSGEQ7_RESET_PIN, LOW);
+    digitalWrite(MSGEQ7_STROBE_PIN, HIGH);
+}
+
+// get the data from the MSGEQ7
+// (still fucking slow...)
+void ReadAudio() {
+    digitalWrite(MSGEQ7_RESET_PIN, HIGH);
+    digitalWrite(MSGEQ7_RESET_PIN, LOW);
+    for (byte band = 0; band < 7; band++) {
+        digitalWrite(MSGEQ7_STROBE_PIN, LOW);
+        delayMicroseconds(30);
+        left[band] = analogRead(AUDIO_LEFT_PIN) + leftCorrection[band];
+        if (left[band] < 0) left[band] = 0;
+        right[band] = analogRead(AUDIO_RIGHT_PIN) + rightCorrection[band];
+        if (right[band] < 0) right[band] = 0;
+        digitalWrite(MSGEQ7_STROBE_PIN, HIGH);
+    }
+}
 
 /*
 -------------------------------------------------------------------
@@ -102,9 +133,9 @@ void setup() {
 #endif
 
     // just for debugging:
-    //Serial.begin(9600);
+    // Serial.begin(9600);
 
-    // InitMSGEQ7();
+    InitMSGEQ7();
 }
 
 bool sleepIfPowerOff() {
@@ -218,28 +249,6 @@ void MoveOscillators() {
     for (int i = 0; i < 4; i++) {
         p[i] = map(sin8(osci[i]), 0, 255, 0, WIDTH - 1); //why? to keep the result in the range of 0-WIDTH (matrix size)
     }
-}
-
-//// wake up the MSGEQ7
-//void InitMSGEQ7() {
-//    pinMode(MSGEQ7_RESET_PIN, OUTPUT);
-//    pinMode(MSGEQ7_STROBE_PIN, OUTPUT);
-//    digitalWrite(MSGEQ7_RESET_PIN, LOW);
-//    digitalWrite(MSGEQ7_STROBE_PIN, HIGH);
-//}
-
-// get the data from the MSGEQ7
-// (still fucking slow...)
-void ReadAudio() {
-    //digitalWrite(MSGEQ7_RESET_PIN, HIGH);
-    //digitalWrite(MSGEQ7_RESET_PIN, LOW);
-    //for (byte band = 0; band < 7; band++) {
-    //    digitalWrite(MSGEQ7_STROBE_PIN, LOW);
-    //    delayMicroseconds(30);
-    //    left[band] = analogRead(AUDIO_LEFT_PIN);
-    //    right[band] = analogRead(AUDIO_RIGHT_PIN);
-    //    digitalWrite(MSGEQ7_STROBE_PIN, HIGH);
-    //}
 }
 
 /*
@@ -478,27 +487,36 @@ void Copy(byte x0, byte y0, byte x1, byte y1, byte x2, byte y2) {
 
 // rotate + copy triangle (WIDTH / 2*WIDTH / 2)
 void RotateTriangle() {
-    for (int x = 1; x < WIDTH / 2; x++) {
+    int halfWidth = WIDTH / 2;
+    int halfWidthMinus1 = halfWidth - 1;
+
+    for (int x = 1; x < halfWidth; x++) {
         for (int y = 0; y < x; y++) {
-            leds[XY(x, 7 - y)] = leds[XY(7 - x, y)];
+            leds[XY(x, halfWidthMinus1 - y)] = leds[XY(halfWidthMinus1 - x, y)];
         }
     }
 }
 
 // mirror + copy triangle (WIDTH / 2*WIDTH / 2)
 void MirrorTriangle() {
-    for (int x = 1; x < WIDTH / 2; x++) {
+    int halfWidth = WIDTH / 2;
+    int halfWidthMinus1 = halfWidth - 1;
+
+    for (int x = 1; x < halfWidth; x++) {
         for (int y = 0; y < x; y++) {
-            leds[XY(7 - y, x)] = leds[XY(7 - x, y)];
+            leds[XY(halfWidthMinus1 - y, x)] = leds[XY(halfWidthMinus1 - x, y)];
         }
     }
 }
 // draw static rainbow triangle pattern (WIDTH / 2xWIDTH / 2)
 // (just for debugging)
 void RainbowTriangle() {
-    for (int i = 0; i < WIDTH / 2; i++) {
+    int halfWidth = WIDTH / 2;
+    int halfWidthMinus1 = halfWidth - 1;
+
+    for (int i = 0; i < halfWidth; i++) {
         for (int j = 0; j <= i; j++) {
-            Pixel(7 - i, j, i*j * 4);
+            Pixel(halfWidthMinus1 - i, j, i*j * 4);
         }
     }
 }
@@ -761,10 +779,12 @@ void Mandala8() {
 void MSGEQtest() {
     ReadAudio();
     for (int i = 0; i < 7; i++) {
-        Pixel(i, 16 - left[i] / 64, left[i] / 4);
+        Pixel(i * 2, 32 - left[i] / 32, left[i] / 4);
+        Pixel(i * 2 + 1, 32 - left[i] / 32, left[i] / 4);
     }
     for (int i = 0; i < 7; i++) {
-        Pixel(8 + i, 16 - right[i] / 64, right[i] / 4);
+        Pixel(16 + i * 2, 32 - right[i] / 32, right[i] / 4);
+        Pixel(17 + i * 2, 32 - right[i] / 32, right[i] / 4);
     }
     ShowFrame();
     VerticalStream(120);
@@ -773,13 +793,13 @@ void MSGEQtest() {
 // 2 frequencies linked to dot emitters in a spiral mandala
 void MSGEQtest2() {
     ReadAudio();
-    if (left[0]>500) {
+    if (left[0] > 500) {
         Pixel(0, 0, 1);
         Pixel(1, 1, 1);
     }
-    if (left[2] > 200) { Pixel(2, 2, 100); }
-    if (left[6] > 200) { Pixel(5, 0, 200); }
-    SpiralStream(4, 4, 4, 127);
+    if (left[2] > 200) { Pixel(4, 4, 100); }
+    if (left[6] > 200) { Pixel(10, 0, 200); }
+    SpiralStream(8, 8, 8, 127);
     Caleidoscope1();
     ShowFrame();
 }
@@ -787,20 +807,22 @@ void MSGEQtest2() {
 // analyzer 2 bars
 void MSGEQtest3() {
     ReadAudio();
-    for (int i = 0; i < 8; i++) {
-        Pixel(i, 16 - left[0] / 64, 1);
+    for (int i = 0; i < 16; i++) {
+        Pixel(i, 32 - left[0] / 32, 1);
     }
-    for (int i = 8; i < 16; i++) {
-        Pixel(i, 16 - left[4] / 64, 100);
+    for (int i = 16; i < 32; i++) {
+        Pixel(i, 32 - left[4] / 32, 100);
     }
     ShowFrame();
     VerticalStream(120);
 }
+
 // analyzer x 4 (as showed on youtube)
 void MSGEQtest4() {
     ReadAudio();
     for (int i = 0; i < 7; i++) {
-        Pixel(7 - i, 8 - right[i] / 128, i * 10);
+        Pixel(15 - i * 2, 16 - right[i] / 64, i * 10);
+        Pixel(14 - i * 2, 16 - right[i] / 64, i * 10);
     }
     Caleidoscope2();
     ShowFrame();
@@ -810,12 +832,12 @@ void MSGEQtest4() {
 // basedrum/snare linked to red/green emitters
 void AudioSpiral() {
     MoveOscillators();
-    SpiralStream(7, 7, 7, 130);
-    SpiralStream(4, 4, 4, 122);
-    SpiralStream(11, 11, 3, 122);
+    SpiralStream(14, 14, 14, 130);
+    SpiralStream(8, 8, 8, 122);
+    SpiralStream(22, 22, 6, 122);
     ReadAudio();
-    if (left[1] > 500) { leds[2, 1] = CHSV(1, 255, 255); }
-    if (left[4] > 500) { leds[XY(random(15), random(15))] = CHSV(100, 255, 255); }
+    if (left[1] > 500) { leds[4, 2] = CHSV(1, 255, 255); }
+    if (left[4] > 500) { leds[XY(random(31), random(31))] = CHSV(100, 255, 255); }
     ShowFrame();
     DimAll(250);
 }
@@ -835,19 +857,23 @@ void MSGEQtest5() {
 void MSGEQtest6() {
     ReadAudio();
     for (int i = 0; i < 7; i++) {
-        Line(2 * i, 16 - left[i] / 64, 2 * i, 15, i * 10);
-        Line(1 + 2 * i, 16 - left[i] / 64, 1 + 2 * i, 15, i * 10);
+        Line(0 + 4 * i, 32 - left[i] / 32, 0 + 4 * i, 31, i * 10);
+        Line(1 + 4 * i, 32 - left[i] / 32, 1 + 4 * i, 31, i * 10);
+        Line(2 + 4 * i, 32 - left[i] / 32, 2 + 4 * i, 31, i * 10);
+        Line(3 + 4 * i, 32 - left[i] / 32, 3 + 4 * i, 31, i * 10);
     }
     ShowFrame();
     VerticalStream(170);
 }
+
 // geile Scheiße
 // spectrum mandala, color linked to 160Hz band
 void MSGEQtest7() {
     MoveOscillators();
     ReadAudio();
     for (int i = 0; i < 7; i++) {
-        Pixel(7 - i, 8 - right[i] / 128, i * 10 + right[1] / 8);
+        Pixel(14 - i * 2, 16 - right[i] / 64, i * 10 + right[1] / 8);
+        Pixel(15 - i * 2, 16 - right[i] / 64, i * 10 + right[1] / 8);
     }
     Caleidoscope5();
     Caleidoscope1();
@@ -860,7 +886,8 @@ void MSGEQtest8() {
     MoveOscillators();
     ReadAudio();
     for (int i = 0; i < 7; i++) {
-        Pixel(7 - i, 8 - right[i] / 128, i * 10 + osci[1]);
+        Pixel(14 - i * 2, 16 - right[i] / 64, i * 10 + osci[1]);
+        Pixel(15 - i * 2, 16 - right[i] / 64, i * 10 + osci[1]);
     }
     Caleidoscope5();
     Caleidoscope2();
@@ -872,11 +899,13 @@ void MSGEQtest8() {
 void MSGEQtest9() {
     ReadAudio();
     for (int i = 0; i < 7; i++) {
-        leds[XY(i * 2, 0)] = CHSV(i * 27, 255, right[i] / 3); // brightness should be divided by 4
-        leds[XY(1 + i * 2, 0)] = CHSV(i * 27, 255, left[i] / 3);
+        leds[XY(0 + i * 4, 0)] = CHSV(i * 27, 255, left[i] / 4); // brightness should be divided by 4
+        leds[XY(1 + i * 4, 0)] = CHSV(i * 27, 255, left[i] / 4);
+        leds[XY(2 + i * 4, 0)] = CHSV(i * 27, 255, left[i] / 4);
+        leds[XY(3 + i * 4, 0)] = CHSV(i * 27, 255, left[i] / 4);
     }
-    leds[XY(14, 0)] = CRGB( 0, 0, 0 );
-    leds[XY(15, 0)] = CRGB( 0, 0, 0 );
+    leds[XY(14, 0)] = CRGB(0, 0, 0);
+    leds[XY(15, 0)] = CRGB(0, 0, 0);
     ShowFrame();
     VerticalMove();
 }
@@ -924,7 +953,7 @@ void CopyTest2() {
 void Audio1() {
     ReadAudio();
     for (int i = 0; i < 5; i++) {
-        Line(3 * i, 16 - left[i] / 64, 3 * (i + 1), 16 - left[i + 1] / 64, 255 - i * 15);
+        Line(3 * i, 32 - left[i] / 32, 3 * (i + 1), 32 - left[i + 1] / 32, 255 - i * 15);
     }
     Caleidoscope4();
     ShowFrame();
@@ -935,7 +964,7 @@ void Audio1() {
 void Audio2() {
     ReadAudio();
     for (int i = 0; i < 5; i++) {
-        Line(3 * i, 16 - left[i] / 64, 3 * (i + 1), 16 - left[i + 1] / 64, 255 - i * 15);
+        Line(6 * i, 32 - left[i] / 32, 6 * (i + 1), 32 - left[i + 1] / 32, 255 - i * 15);
     }
     ShowFrame();
     HorizontalStream(120);
@@ -944,7 +973,8 @@ void Audio2() {
 void Audio3() {
     ReadAudio();
     for (int i = 0; i < 7; i++) {
-        leds[XY(6 - i, right[i] / 128)] = CHSV(i * 27, 255, right[i]);
+        leds[XY(12 - i * 2, right[i] / 64)] = CHSV(i * 27, 255, right[i]);
+        leds[XY(13 - i * 2, right[i] / 64)] = CHSV(i * 27, 255, right[i]);
     } // brightness should be divided by 4
     Caleidoscope6();
     Caleidoscope2();
@@ -955,7 +985,7 @@ void Audio3() {
 void Audio4() {
     ReadAudio();
     for (int i = 0; i < 5; i++) {
-        Line(3 * i, 8 - left[i] / 128, 3 * (i + 1), 8 - left[i + 1] / 128, i*left[i] / 32);
+        Line(6 * i, 16 - left[i] / 64, 6 * (i + 1), 16 - left[i + 1] / 64, i*left[i] / 32);
     }
     Caleidoscope4();
     ShowFrame();
@@ -965,7 +995,7 @@ void Audio4() {
 void CaleidoTest1() {
     ReadAudio();
     for (int i = 0; i < 7; i++) {
-        Line(i, left[i] / 256, i, 0, left[i] / 32);
+        Line(i * 2, left[i] / 128, i * 2, 0, left[i] / 32);
     }
     RotateTriangle();
     Caleidoscope2(); //copy + rotate
@@ -977,7 +1007,8 @@ void CaleidoTest2() {
     MoveOscillators();
     ReadAudio();
     for (int i = 0; i < 7; i++) {
-        Line(i, left[i] / 200, i, 0, (left[i] / 16) + 150);
+        Line(i * 2, left[i] / 100, i * 2, 0, (left[i] / 16) + 150);
+        Line(i * 2 + 1, left[i] / 100, i * 2, 0, (left[i] / 16) + 150);
     }
     MirrorTriangle();
     Caleidoscope1(); //mirror + rotate
@@ -989,8 +1020,8 @@ void Audio5() {
     ReadAudio();
     for (int i = 0; i < 5; i++) {
         Line(
-            3 * i, 8 - left[i] / 128, // from
-            3 * (i + 1), 8 - left[i + 1] / 128, // to
+            6 * i, 16 - left[i] / 64, // from
+            6 * (i + 1), 16 - left[i + 1] / 64, // to
             i * 30);
     } // color
     Caleidoscope4();
@@ -1002,12 +1033,12 @@ void Audio6() {
     ReadAudio();
     for (int i = 0; i < 5; i++) {
         Line(
-            3 * i, 8 - left[i] / 128, // from
-            3 * (i + 1), 8 - left[i + 1] / 128, // to
-            i * 10); // lolor
+            6 * i, 16 - left[i] / 64, // from
+            6 * (i + 1), 16 - left[i + 1] / 64, // to
+            i * 10); // color
         Line(
-            15 - (3 * i), 7 + left[i] / 128, // from
-            15 - (3 * (i + 1)), 7 + left[i + 1] / 128, // to
+            31 - (6 * i), 15 + right[i] / 64, // from
+            31 - (6 * (i + 1)), 15 + right[i + 1] / 64, // to
             i * 10); // color
     }
     ShowFrame();
@@ -1087,37 +1118,37 @@ Audio6
 
 // all examples together
 void AutoRun() {
-    // all oscillator based:
-    for (int i = 0; i < 300; i++) { Spark(); if (sleepIfPowerOff()) return; }
-    for (int i = 0; i < 300; i++) { Fire(); if (sleepIfPowerOff()) return; }
-    for (int i = 0; i < 300; i++) { Ghost(); if (sleepIfPowerOff()) return; }
-    for (int i = 0; i < 300; i++) { Dots1(); if (sleepIfPowerOff()) return; }
-    for (int i = 0; i < 300; i++) { Dots2(); if (sleepIfPowerOff()) return; }
-    SlowMandala();
-    SlowMandala2();
-    SlowMandala3();
-    for (int i = 0; i < 300; i++) { Mandala8(); if (sleepIfPowerOff()) return; }
+    //// all oscillator based:
+    //for (int i = 0; i < 300; i++) { Spark(); if (sleepIfPowerOff()) return; }
+    //for (int i = 0; i < 300; i++) { Fire(); if (sleepIfPowerOff()) return; }
+    //for (int i = 0; i < 300; i++) { Ghost(); if (sleepIfPowerOff()) return; }
+    //for (int i = 0; i < 300; i++) { Dots1(); if (sleepIfPowerOff()) return; }
+    //for (int i = 0; i < 300; i++) { Dots2(); if (sleepIfPowerOff()) return; }
+    //SlowMandala();
+    //SlowMandala2();
+    //SlowMandala3();
+    //for (int i = 0; i < 300; i++) { Mandala8(); if (sleepIfPowerOff()) return; }
 
-    //// all MSGEQ7 based:
-    //for (int i = 0; i < 500; i++) { MSGEQtest(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest2(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest3(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest4(); }
-    //for (int i = 0; i < 500; i++) { AudioSpiral(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest5(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest6(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest7(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest8(); }
-    //for (int i = 0; i < 500; i++) { MSGEQtest9(); }
-    //for (int i = 0; i < 500; i++) { CopyTest(); }
-    //for (int i = 0; i < 500; i++) { Audio1(); }
-    //for (int i = 0; i < 500; i++) { Audio2(); }
-    //for (int i = 0; i < 500; i++) { Audio3(); }
-    //for (int i = 0; i < 500; i++) { Audio4(); }
-    //for (int i = 0; i < 500; i++) { CaleidoTest1(); }
-    //for (int i = 0; i < 500; i++) { CaleidoTest2(); }
-    //for (int i = 0; i < 500; i++) { Audio5(); }
-    //for (int i = 0; i < 500; i++) { Audio6(); }
+    // all MSGEQ7 based:
+    for (int i = 0; i < 500; i++) { MSGEQtest(); }
+    for (int i = 0; i < 500; i++) { MSGEQtest2(); }
+    for (int i = 0; i < 500; i++) { MSGEQtest3(); }
+    for (int i = 0; i < 500; i++) { MSGEQtest4(); }
+    for (int i = 0; i < 500; i++) { AudioSpiral(); }
+    // for (int i = 0; i < 500; i++) { MSGEQtest5(); }
+    for (int i = 0; i < 500; i++) { MSGEQtest6(); } 
+    for (int i = 0; i < 500; i++) { MSGEQtest7(); }
+    for (int i = 0; i < 500; i++) { MSGEQtest8(); }
+    for (int i = 0; i < 500; i++) { MSGEQtest9(); }
+    // for (int i = 0; i < 500; i++) { CopyTest(); }
+    for (int i = 0; i < 500; i++) { Audio1(); }
+    for (int i = 0; i < 500; i++) { Audio2(); }
+    for (int i = 0; i < 500; i++) { Audio3(); }
+    for (int i = 0; i < 500; i++) { Audio4(); }
+    for (int i = 0; i < 500; i++) { CaleidoTest1(); }
+    for (int i = 0; i < 500; i++) { CaleidoTest2(); }
+    for (int i = 0; i < 500; i++) { Audio5(); }
+    for (int i = 0; i < 500; i++) { Audio6(); }
 }
 
 /*
@@ -1132,7 +1163,7 @@ void loop()
     AutoRun();
 
     // Comment AutoRun out and test examples seperately here
-    // Mandala8();
+    // MSGEQtest9();
 
     // For discovering parameters of examples I reccomend to
     // tinker with a renamed copy ...
