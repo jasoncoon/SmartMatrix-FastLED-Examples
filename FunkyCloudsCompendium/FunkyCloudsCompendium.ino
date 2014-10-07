@@ -50,7 +50,7 @@ const rgb24 COLOR_BLACK = { 0, 0, 0 };
 
 // MSGEQ7 wiring on spectrum analyser shield
 #define AUDIO_LEFT_PIN 19 // 0
-#define AUDIO_RIGHT_PIN 18 // 1
+#define AUDIO_RIGHT_PIN 15 // 1
 #define MSGEQ7_STROBE_PIN 17 // 4
 #define MSGEQ7_RESET_PIN 16 // 5
 
@@ -64,7 +64,7 @@ const uint8_t HEIGHT = 32;
 #define NUM_LEDS (WIDTH * HEIGHT)
 
 // the rendering buffer (32*32)
-rgb24 *leds;
+CRGB *leds;
 
 // the oscillators: linear ramps 0-255
 byte osci[4];
@@ -93,7 +93,7 @@ void InitMSGEQ7() {
 }
 
 // get the data from the MSGEQ7
-// (still fucking slow...)
+// (still slow...)
 void ReadAudio() {
     digitalWrite(MSGEQ7_RESET_PIN, HIGH);
     digitalWrite(MSGEQ7_RESET_PIN, LOW);
@@ -123,7 +123,7 @@ void setup() {
     matrix.fillScreen(COLOR_BLACK);
     matrix.swapBuffers();
 
-    leds = matrix.backBuffer();
+    leds = (CRGB*) matrix.backBuffer();
 
 #if (HAS_IR_REMOTE == 1)
 
@@ -525,7 +525,7 @@ void ShowFrame() {
     // when using a matrix different than 16*16 use RenderCustomMatrix();
     //RenderCustomMatrix();
     matrix.swapBuffers();
-    leds = matrix.backBuffer();
+	leds = (CRGB*) matrix.backBuffer();
 }
 
 // Array of temperature readings at each simulation cell
@@ -543,9 +543,9 @@ byte heat[NUM_LEDS];
 // On AVR/Arduino, this typically takes around 70 bytes of program memory,
 // versus 768 bytes for a full 256-entry RGB lookup table.
 
-rgb24 HeatRgb24(uint8_t temperature)
+CRGB HeatRgb24(uint8_t temperature)
 {
-    rgb24 heatcolor;
+	CRGB heatcolor;
 
     // Scale 'heat' down from 0-255 to 0-191,
     // which can then be easily divided into three
@@ -614,9 +614,9 @@ void Spark() {
         // Step 4.  Map from heat cells to LED colors
         for (int y = 0; y < HEIGHT; y++) {
             int xy = XY(x, y);
-            rgb24 color = HeatRgb24(heat[xy]);
+			CRGB color = HeatRgb24(heat[xy]);
 
-            leds[xy] = color;
+			leds[xy] = color;
         }
     }
 
@@ -668,9 +668,9 @@ void Fire() {
         // Step 4.  Map from heat cells to LED colors
         for (int y = 0; y < HEIGHT; y++) {
             int xy = XY(x, y);
-            rgb24 color = HeatRgb24(heat[xy]);
+            CRGB color = HeatRgb24(heat[xy]);
 
-            leds[xy] = color;
+			leds[xy] = color;
         }
     }
 
@@ -706,7 +706,6 @@ void SlowMandala() {
             SpiralStream(8, 8, 8, 127);
             Caleidoscope1();
             ShowFrame();
-            if (sleepIfPowerOff()) return;
             delay(50);
         }
     }
@@ -745,7 +744,6 @@ void SlowMandala2() {
             ShowFrame();
             delay(20);
         }
-        if (sleepIfPowerOff()) return;
     }
 }
 
@@ -760,7 +758,6 @@ void SlowMandala3() {
             ShowFrame();
             delay(20);
         }
-        if (sleepIfPowerOff()) return;
     }
 }
 
@@ -1118,37 +1115,37 @@ Audio6
 
 // all examples together
 void AutoRun() {
-    //// all oscillator based:
-    //for (int i = 0; i < 300; i++) { Spark(); if (sleepIfPowerOff()) return; }
-    //for (int i = 0; i < 300; i++) { Fire(); if (sleepIfPowerOff()) return; }
-    //for (int i = 0; i < 300; i++) { Ghost(); if (sleepIfPowerOff()) return; }
-    //for (int i = 0; i < 300; i++) { Dots1(); if (sleepIfPowerOff()) return; }
-    //for (int i = 0; i < 300; i++) { Dots2(); if (sleepIfPowerOff()) return; }
-    //SlowMandala();
-    //SlowMandala2();
-    //SlowMandala3();
-    //for (int i = 0; i < 300; i++) { Mandala8(); if (sleepIfPowerOff()) return; }
+    // all oscillator based:
+    for (int i = 0; i < 300; i++) { Spark(); if (sleepIfPowerOff()) return; }
+    for (int i = 0; i < 300; i++) { Fire(); if (sleepIfPowerOff()) return; }
+    for (int i = 0; i < 300; i++) { Ghost(); if (sleepIfPowerOff()) return; }
+    for (int i = 0; i < 300; i++) { Dots1(); if (sleepIfPowerOff()) return; }
+    for (int i = 0; i < 300; i++) { Dots2(); if (sleepIfPowerOff()) return; }
+    SlowMandala();
+    SlowMandala2();
+    SlowMandala3();
+    for (int i = 0; i < 300; i++) { Mandala8(); if (sleepIfPowerOff()) return; }
 
-    // all MSGEQ7 based:
-    for (int i = 0; i < 500; i++) { MSGEQtest(); }
-    for (int i = 0; i < 500; i++) { MSGEQtest2(); }
-    for (int i = 0; i < 500; i++) { MSGEQtest3(); }
-    for (int i = 0; i < 500; i++) { MSGEQtest4(); }
-    for (int i = 0; i < 500; i++) { AudioSpiral(); }
-    // for (int i = 0; i < 500; i++) { MSGEQtest5(); }
-    for (int i = 0; i < 500; i++) { MSGEQtest6(); } 
-    for (int i = 0; i < 500; i++) { MSGEQtest7(); }
-    for (int i = 0; i < 500; i++) { MSGEQtest8(); }
-    for (int i = 0; i < 500; i++) { MSGEQtest9(); }
-    // for (int i = 0; i < 500; i++) { CopyTest(); }
-    for (int i = 0; i < 500; i++) { Audio1(); }
-    for (int i = 0; i < 500; i++) { Audio2(); }
-    for (int i = 0; i < 500; i++) { Audio3(); }
-    for (int i = 0; i < 500; i++) { Audio4(); }
-    for (int i = 0; i < 500; i++) { CaleidoTest1(); }
-    for (int i = 0; i < 500; i++) { CaleidoTest2(); }
-    for (int i = 0; i < 500; i++) { Audio5(); }
-    for (int i = 0; i < 500; i++) { Audio6(); }
+    //// all MSGEQ7 based:
+    //for (int i = 0; i < 500; i++) { MSGEQtest(); }
+    //for (int i = 0; i < 500; i++) { MSGEQtest2(); }
+    //for (int i = 0; i < 500; i++) { MSGEQtest3(); }
+    //for (int i = 0; i < 500; i++) { MSGEQtest4(); }
+    //for (int i = 0; i < 500; i++) { AudioSpiral(); }
+    //// for (int i = 0; i < 500; i++) { MSGEQtest5(); }
+    //for (int i = 0; i < 500; i++) { MSGEQtest6(); } 
+    //for (int i = 0; i < 500; i++) { MSGEQtest7(); }
+    //for (int i = 0; i < 500; i++) { MSGEQtest8(); }
+    //for (int i = 0; i < 500; i++) { MSGEQtest9(); }
+    //// for (int i = 0; i < 500; i++) { CopyTest(); }
+    //for (int i = 0; i < 500; i++) { Audio1(); }
+    //for (int i = 0; i < 500; i++) { Audio2(); }
+    //for (int i = 0; i < 500; i++) { Audio3(); }
+    //for (int i = 0; i < 500; i++) { Audio4(); }
+    //for (int i = 0; i < 500; i++) { CaleidoTest1(); }
+    //for (int i = 0; i < 500; i++) { CaleidoTest2(); }
+    //for (int i = 0; i < 500; i++) { Audio5(); }
+    //for (int i = 0; i < 500; i++) { Audio6(); }
 }
 
 /*

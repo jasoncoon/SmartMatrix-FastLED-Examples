@@ -44,15 +44,15 @@ const uint8_t HEIGHT = 32;
 
 #define NUM_LEDS (WIDTH * HEIGHT)
 
-rgb24 *leds;
+CRGB *leds;
 
 byte count;
 
-rgb24 color0 = CHSV(0, 255, 255);
-rgb24 color1 = CHSV(40, 255, 255);
-rgb24 color2 = CHSV(80, 255, 255);
-rgb24 color3 = CHSV(120, 255, 255);
-rgb24 color4 = CHSV(160, 255, 255);
+CRGB color0 = CHSV(0, 255, 255);
+CRGB color1 = CHSV(40, 255, 255);
+CRGB color2 = CHSV(80, 255, 255);
+CRGB color3 = CHSV(120, 255, 255);
+CRGB color4 = CHSV(160, 255, 255);
 
 void setup() {
     // Setup serial interface
@@ -107,7 +107,7 @@ void loop()
     }
 #endif
 
-    leds = matrix.backBuffer();
+    leds = (CRGB*) matrix.backBuffer();
 
     count++;
     if (count == 255) count = 0;

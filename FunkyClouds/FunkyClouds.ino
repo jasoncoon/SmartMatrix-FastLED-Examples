@@ -29,7 +29,7 @@ SmartMatrix matrix;
 
 const int DEFAULT_BRIGHTNESS = 255;
 
-const rgb24 COLOR_BLACK = { 0, 0, 0 };
+const CRGB COLOR_BLACK = { 0, 0, 0 };
 
 bool isOff = false;
 
@@ -44,7 +44,7 @@ const uint8_t HEIGHT = 32;
 
 #define NUM_LEDS (WIDTH * HEIGHT)
 
-rgb24 *leds;
+CRGB *leds;
 
 // Oscillator Setup
 
@@ -219,7 +219,7 @@ void loop()
     }
 #endif
 
-    leds = matrix.backBuffer();
+    leds = (CRGB*) matrix.backBuffer();
 
     // let the oscillators swing
     UpdateTimers();

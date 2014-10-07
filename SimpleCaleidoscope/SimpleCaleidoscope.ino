@@ -10,7 +10,7 @@
 #include "SmartMatrix.h"
 #include "FastLED.h"
 
-#define HAS_IR_REMOTE 1
+#define HAS_IR_REMOTE 0
 
 #if (HAS_IR_REMOTE == 1)
 
@@ -39,17 +39,17 @@ const uint8_t HEIGHT = 32;
 // LED stuff 
 const int DEFAULT_BRIGHTNESS = 255;
 #define NUM_LEDS (WIDTH * HEIGHT)
-rgb24 *leds;
-rgb24 buffer[NUM_LEDS];
+CRGB *leds;
+CRGB buffer[NUM_LEDS];
 
 byte count;
 
 #define FRAMES_PER_SECOND 120
 
-rgb24 sin8Color = CHSV(160, 255, 255);
-rgb24 quadwave8Color = CHSV(0, 255, 255); // red
-rgb24 cubicwave8Color = CHSV(40, 255, 255); // yellow
-rgb24 triwave8Color = CHSV(80, 255, 255); // green
+CRGB sin8Color = CHSV(160, 255, 255);
+CRGB quadwave8Color = CHSV(0, 255, 255); // red
+CRGB cubicwave8Color = CHSV(40, 255, 255); // yellow
+CRGB triwave8Color = CHSV(80, 255, 255); // green
 
 void setup()
 {
@@ -102,51 +102,6 @@ unsigned long handleInput() {
 }
 
 #endif
-
-void loop()
-{
-#if (HAS_IR_REMOTE == 1)
-    handleInput();
-
-    if (isOff) {
-        delay(100);
-        return;
-    }
-#endif
-
-    leds = matrix.backBuffer();
-
-    count = count + 5;
-
-    // first plant the seed into the buffer
-    buffer[XY(map(sin8(count), 0, 255, 0, 31), map(cos8(count), 0, 255, 0, 31))] = sin8Color; // the circle  (blue)
-    // lines following different wave fonctions
-    buffer[XY(map(quadwave8(count), 0, 255, 0, 31), 10)] = quadwave8Color; // red
-    buffer[XY(map(quadwave8(count), 0, 255, 0, 31), 11)] = quadwave8Color; // red
-    buffer[XY(map(cubicwave8(count), 0, 255, 0, 31), 12)] = cubicwave8Color; // yellow
-    buffer[XY(map(cubicwave8(count), 0, 255, 0, 31), 13)] = cubicwave8Color; // yellow
-    buffer[XY(map(triwave8(count), 0, 255, 0, 31), 14)] = triwave8Color; // green
-    buffer[XY(map(triwave8(count), 0, 255, 0, 31), 15)] = triwave8Color; // green
-
-    // duplicate the seed in the buffer
-    Caleidoscope4();
-
-    // add buffer to leds
-    ShowBuffer();
-
-    // clear buffer
-    ClearBuffer();
-
-    // rotate leds
-    Spiral(15, 15, 16, 110);
-
-    matrix.swapBuffers();
-
-    // do not delete the current leds, just fade them down for the tail effect
-    //DimmAll(220);
-
-    delay(1000 / FRAMES_PER_SECOND);
-}
 
 // translates from x, y into an index into the LED array
 int XY(int x, int y) {
@@ -267,4 +222,49 @@ void Spiral(int x, int y, int r, byte dimm) {
             leds[XY(x - d, i)].nscale8(dimm);
         }
     }
+}
+
+void loop()
+{
+#if (HAS_IR_REMOTE == 1)
+	handleInput();
+
+	if (isOff) {
+		delay(100);
+		return;
+	}
+#endif
+
+	leds = (CRGB*) matrix.backBuffer();
+
+	count = count + 5;
+
+	// first plant the seed into the buffer
+	buffer[XY(map(sin8(count), 0, 255, 0, 31), map(cos8(count), 0, 255, 0, 31))] = sin8Color; // the circle  (blue)
+	// lines following different wave fonctions
+	buffer[XY(map(quadwave8(count), 0, 255, 0, 31), 10)] = quadwave8Color; // red
+	buffer[XY(map(quadwave8(count), 0, 255, 0, 31), 11)] = quadwave8Color; // red
+	buffer[XY(map(cubicwave8(count), 0, 255, 0, 31), 12)] = cubicwave8Color; // yellow
+	buffer[XY(map(cubicwave8(count), 0, 255, 0, 31), 13)] = cubicwave8Color; // yellow
+	buffer[XY(map(triwave8(count), 0, 255, 0, 31), 14)] = triwave8Color; // green
+	buffer[XY(map(triwave8(count), 0, 255, 0, 31), 15)] = triwave8Color; // green
+
+	// duplicate the seed in the buffer
+	Caleidoscope4();
+
+	// add buffer to leds
+	ShowBuffer();
+
+	// clear buffer
+	ClearBuffer();
+
+	// rotate leds
+	Spiral(15, 15, 16, 110);
+
+	matrix.swapBuffers();
+
+	// do not delete the current leds, just fade them down for the tail effect
+	//DimmAll(220);
+
+	delay(1000 / FRAMES_PER_SECOND);
 }

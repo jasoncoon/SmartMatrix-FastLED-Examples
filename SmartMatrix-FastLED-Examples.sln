@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.30110.0
+VisualStudioVersion = 12.0.30723.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Fire1", "Fire1\Fire1.vcxproj", "{177D446E-3117-4824-87E2-5C63E283C28F}"
 EndProject
@@ -19,6 +19,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SimpleCaleidoscope", "SimpleCaleidoscope\SimpleCaleidoscope.vcxproj", "{5EF77E57-D381-41F9-A53D-013EF1C4C416}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FunkyCloudsCompendium", "FunkyCloudsCompendium\FunkyCloudsCompendium.vcxproj", "{F97F126D-D6EF-4D9C-8615-F861078DF713}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NoisePlusPalette", "NoisePlusPalette\NoisePlusPalette.vcxproj", "{F9EABF66-72F4-43BE-A3CF-BDEDBC559B73}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -90,6 +92,16 @@ Global
 		{F97F126D-D6EF-4D9C-8615-F861078DF713}.Release|Mixed Platforms.Build.0 = Release|Win32
 		{F97F126D-D6EF-4D9C-8615-F861078DF713}.Release|Win32.ActiveCfg = Release|Win32
 		{F97F126D-D6EF-4D9C-8615-F861078DF713}.Release|Win32.Build.0 = Release|Win32
+		{F9EABF66-72F4-43BE-A3CF-BDEDBC559B73}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{F9EABF66-72F4-43BE-A3CF-BDEDBC559B73}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
+		{F9EABF66-72F4-43BE-A3CF-BDEDBC559B73}.Debug|Mixed Platforms.Build.0 = Debug|Win32
+		{F9EABF66-72F4-43BE-A3CF-BDEDBC559B73}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F9EABF66-72F4-43BE-A3CF-BDEDBC559B73}.Debug|Win32.Build.0 = Debug|Win32
+		{F9EABF66-72F4-43BE-A3CF-BDEDBC559B73}.Release|Any CPU.ActiveCfg = Release|Win32
+		{F9EABF66-72F4-43BE-A3CF-BDEDBC559B73}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{F9EABF66-72F4-43BE-A3CF-BDEDBC559B73}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{F9EABF66-72F4-43BE-A3CF-BDEDBC559B73}.Release|Win32.ActiveCfg = Release|Win32
+		{F9EABF66-72F4-43BE-A3CF-BDEDBC559B73}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

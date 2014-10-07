@@ -10,7 +10,7 @@
 #include "SmartMatrix.h"
 #include "FastLED.h"
 
-#define HAS_IR_REMOTE 1
+#define HAS_IR_REMOTE 0
 
 #if (HAS_IR_REMOTE == 1)
 
@@ -39,7 +39,7 @@ const uint8_t HEIGHT = 32;
 // LED stuff 
 const int DEFAULT_BRIGHTNESS = 255;
 #define NUM_LEDS (WIDTH * HEIGHT)
-rgb24 *leds;
+CRGB *leds;
 
 // Timer stuff (Oszillators)
 
@@ -56,8 +56,13 @@ timer multiTimer[5];
 int timers = sizeof(multiTimer) / sizeof(multiTimer[0]);
 
 void setup() {
+    Serial.begin(9600);
+
     // Initialize 32x32 LED Matrix
+    Serial.print("Initializing matrix...");
     matrix.begin();
+    Serial.println(" done");
+
     matrix.setBrightness(DEFAULT_BRIGHTNESS);
     matrix.setColorCorrection(cc24);
 
@@ -101,6 +106,8 @@ void setup() {
     multiTimer[4].up = HEIGHT - 1;
     multiTimer[4].down = 0;
     multiTimer[4].count = 0;
+    
+    Serial.println("Setup done");
 }
 
 // translates from x, y into an index into the LED array
@@ -220,8 +227,8 @@ void loop()
         return;
     }
 #endif
-
-    leds = matrix.backBuffer();
+    
+	leds = (CRGB*) matrix.backBuffer();
 
     // manage the Oszillators
     UpdateTimers();
